@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Your Lie in April - Eternal Memory</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,700;1,400&family=Dancing+Script:wght@700&family=Lora:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --sakura: #ffb7c5; --gold: #ffd700; }
+        
+        body, html { 
+            margin: 0; padding: 0; overflow: hidden; 
+            background: #000; font-family: 'Crimson Text', serif; 
+            user-select: none; color: white;
+        }
+
+        /* Latar Belakang & Efek Visual */
+        #bg-image { 
+            position: fixed; inset: 0; width: 100%; height: 100%; 
+            object-fit: cover; z-index: 1; 
+            transition: opacity 2.5s ease, filter 3s ease, transform 8s ease-in-out; 
+            filter: brightness(0.4);
+        }
+
+        .vignette { 
+            position: fixed; inset: 0; z-index: 5; 
+            background: radial-gradient(circle, transparent 15%, rgba(0,0,0,0.8) 100%); 
+            pointer-events: none; 
+        }
+
+        canvas { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+
+        /* Wadah Teks Tengah (Centered Layout) */
+        #story-container {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 40px; cursor: pointer; text-align: center;
+        }
+
+        #content-box {
+            max-width: 85%;
+            transition: opacity 1.2s ease, transform 1.2s ease;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        #name-tag {
+            font-family: 'Dancing Script', cursive; font-size: 2.2em;
+            color: var(--sakura); margin-bottom: 25px;
+            text-shadow: 0 0 15px rgba(255, 183, 197, 0.5);
+        }
+
+        #main-text {
+            font-size: 1.5em; line-height: 1.7; font-style: italic;
+            text-shadow: 0 0 20px rgba(0,0,0,1); font-weight: 300;
+        }
+
+        /* Animasi Berdenyut Saat Sedih */
+        @keyframes pulseEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        .pulse { animation: pulseEffect 5s infinite ease-in-out; }
+
+        /* Mode Surat */
+        .mode-surat #name-tag { color: var(--gold); }
+        .mode-surat #main-text { font-family: 'Lora', serif; font-size: 1.4em; }
+        .mode-surat #bg-image { filter: brightness(0.25) blur(6px); transform: scale(1.1); }
+
+        /* Ending Layer (Layar Putih) */
+        #ending-scene {
+            position: fixed; inset: 0; background: #fff; z-index: 2000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: opacity 5s ease;
+        }
+        #ending-scene.active { opacity: 1; visibility: visible; }
+        
+        .sayonara {
+            color: #444; font-family: 'Dancing Script', cursive;
+            font-size: 3.5em; letter-spacing: 10px; opacity: 0;
+            transition: opacity 4s ease 2s;
+        }
+        .sayonara.show { opacity: 1; }
+        .tamat { font-size: 0.8em; color: #999; margin-top: 30px; letter-spacing: 12px; opacity: 0; transition: 3s ease 5s; }
+        .tamat.show { opacity: 1; }
+
+        /* Start Screen */
+        #start-screen { 
+            position: fixed; inset: 0; background: #000; z-index: 1000; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            transition: opacity 2s ease;
+        }
+        .play-btn { 
+            background: transparent; color: white; border: 0.5px solid rgba(255,255,255,0.4); 
+            padding: 15px 40px; font-size: 0.8em; cursor: pointer; letter-spacing: 6px; 
+            transition: 0.5s;
+        }
+        .play-btn:hover { border-color: var(--sakura); color: var(--sakura); }
+    </style>
+</head>
+<body>
+
+<audio id="bgm" loop></audio>
+<img id="bg-image" src="">
+<div class="vignette"></div>
+<canvas id="canvas-fx"></canvas>
+
+<div id="ending-scene">
+    <div class="sayonara" id="sayonara-text">Sayonara.</div>
+    <div class="tamat" id="tamat-text">TAMAT</div>
+</div>
+
+<div id="start-screen">
+    <div style="font-size: 0.6em; letter-spacing: 8px; margin-bottom: 20px; color: var(--sakura);">SHIGATSU WA KIMI NO USO</div>
+    <h1 style="letter-spacing: 10px; font-weight: 100; margin-bottom: 50px;">KEBOHONGAN DI BULAN APRIL</h1>
+    <button class="play-btn" onclick="start()">BACA KENANGAN</button>
+</div>
+
+<div id="story-container" onclick="next()">
+    <div id="content-box">
+        <div id="name-tag"></div>
+        <div id="main-text"></div>
+        <div style="font-size: 0.5em; opacity: 0.2; margin-top: 60px; letter-spacing: 5px;">TAP UNTUK MELANJUTKAN</div>
+    </div>
+</div>
+
+<script>
+    const FILE_COVER = "cover.jpg"; 
+    const FILE_ENDING = "ending.jpg"; 
+    const FILE_MUSIC = "musik.mp3"; 
+
+    const ceritanya = [
+        { n: "Kousei", t: "Semuanya terasa monokrom. Sejak ibu pergi, aku tidak bisa lagi mendengar suara pianoku sendiri.", img: FILE_COVER },
+        { n: "Kousei", t: "Bagiku, musik adalah kutukan yang mengurungku di dasar laut yang gelap dan sunyi.", img: FILE_COVER },
+        { n: "Tsubaki", t: "Kousei! Sampai kapan kau mau melamun? Ayo ikut! Ada gadis cantik yang menunggu!", img: FILE_COVER },
+        { n: "Kousei", t: "Dan di sana, di bawah naungan bunga sakura yang bermekaran... aku melihatnya.", img: FILE_COVER },
+        { n: "Kaori", t: "Hei! Kamu si 'Teman A', kan? Namaku Miyazono Kaori. Ayo, ikut aku masuk ke dunia musik!", img: FILE_COVER },
+        { n: "Kousei", t: "Dia adalah badai. Dia pemain biola yang aneh, egois, tapi permainannya... sangat berwarna.", img: FILE_COVER },
+        { n: "Kaori", t: "Lihat ke atas! Kita musisi, kita harus meninggalkan jejak di hati penonton kita!", img: FILE_COVER },
+        { n: "Kousei", t: "Dia menarik tanganku keluar dari kegelapan. Berkat dia, duniaku mulai memiliki warna kembali.", img: FILE_COVER },
+        { n: "Kousei", t: "Tapi, di tengah semua warna itu, aku menyadari sesuatu. Cahaya di matanya mulai meredup.", img: FILE_ENDING },
+        { n: "Kaori", t: "Kousei... aku takut. Aku benar-benar takut. Tolong... jangan biarkan aku sendirian.", img: FILE_ENDING },
+        { n: "Narasi", t: "Hari operasi pun tiba. Bersamaan dengan hari kompetisi pianoku yang paling berat.", img: FILE_ENDING },
+        { n: "Kousei", t: "Saat aku bermain, kau muncul dalam imajinasiku. Kita bermain duet untuk terakhir kalinya.", img: FILE_ENDING },
+        { n: "Kousei", t: "Lalu tubuhmu berubah menjadi kelopak sakura... dan kau menghilang. Aku tahu, kau sudah pergi.", img: FILE_ENDING },
+        
+        // SURAT LENGKAP
+        { n: "Surat Kaori", t: "Kepada Arima Kousei,\n\nRasanya aneh menulis surat untuk seseorang yang baru saja bersamaku.", img: FILE_ENDING, isSurat: true },
+        { n: "Surat Kaori", t: "Tahukah kau? Aku pertama kali melihatmu saat aku berumur 5 tahun. Aku ingin sekali bermain duet bersamamu.", img: FILE_ENDING, isSurat: true },
+        { n: "Surat Kaori", t: "Saat aku tahu hidupku tidak akan lama lagi, aku melakukan sebuah kebohongan kecil.", img: FILE_ENDING, isSurat: true },
+        { n: "Surat Kaori", t: "Kebohongan bahwa 'Miyazono Kaori menyukai Watari Ryouta'.", img: FILE_ENDING, isSurat: true },
+        { n: "Surat Kaori", t: "Kebohongan itu... berhasil membawamu kepadaku, Kousei.", img: FILE_ENDING, isSurat: true },
+        { n: "Surat Kaori", t: "Arima Kousei... Aku mencintaimu. Aku sangat mencintaimu.", img: FILE_ENDING, isSurat: true },
+        { n: "Surat Kaori", t: "Tolong, jangan pernah lupakan aku. Janji, ya?", img: FILE_ENDING, isSurat: true },
+        { n: "Kousei", t: "Musim semi akan segera tiba. Musim semi tanpamu... akan segera dimulai.", img: FILE_ENDING, isSurat: true }
+    ];
+
+    let currentIdx = 0;
+    let sparkRate = 0.1;
+
+    function start() {
+        document.getElementById('start-screen').style.opacity = '0';
+        setTimeout(() => document.getElementById('start-screen').style.display = 'none', 2000);
+        const bgm = document.getElementById('bgm');
+        bgm.src = FILE_MUSIC; bgm.volume = 0.4; bgm.play();
+        render();
+    }
+
+    function render() {
+        const data = ceritanya[currentIdx];
+        const box = document.getElementById('content-box');
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(10px)';
+        
+        setTimeout(() => {
+            document.getElementById('name-tag').innerText = data.n;
+            document.getElementById('main-text').innerText = data.t;
+            document.getElementById('bg-image').src = data.img;
+
+            if(data.isSurat) {
+                document.body.classList.add('mode-surat');
+                box.classList.add('pulse');
+                sparkRate = 0.7; 
+            } else {
+                document.body.classList.remove('mode-surat');
+                box.classList.remove('pulse');
+                sparkRate = 0.1;
+            }
+
+            box.style.opacity = '1';
+            box.style.transform = 'translateY(0)';
+        }, 1200);
+    }
+
+    function next() {
+        if(currentIdx < ceritanya.length - 1) {
+            currentIdx++;
+            render();
+        } else {
+            triggerEnding();
+        }
+    }
+
+    function triggerEnding() {
+        document.getElementById('story-container').style.pointerEvents = 'none';
+        document.getElementById('content-box').style.opacity = '0';
+        
+        // Audio Fade Out
+        const bgm = document.getElementById('bgm');
+        const fadeAudio = setInterval(() => {
+            if (bgm.volume > 0.05) bgm.volume -= 0.02;
+            else { bgm.pause(); clearInterval(fadeAudio); }
+        }, 200);
+
+        document.getElementById('ending-scene').classList.add('active');
+        setTimeout(() => {
+            document.getElementById('sayonara-text').classList.add('show');
+            document.getElementById('tamat-text').classList.add('show');
+        }, 1000);
+    }
+
+    // --- Efek Partikel Sakura & Cahaya ---
+    const canvas = document.getElementById('canvas-fx');
+    const ctx = canvas.getContext('2d');
+    let pts = [], sparks = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.onresize = resize; resize();
+
+    for(let i=0; i<60; i++) pts.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, s:Math.random()*0.5+0.3});
+
+    function loop() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        // Sakura (Turun)
+        ctx.fillStyle = 'rgba(255, 183, 197, 0.5)';
+        pts.forEach(p => {
+            p.y += p.s; p.x += Math.sin(p.y/50)*0.3;
+            if(p.y > canvas.height) p.y = -20;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+        });
+        // Cahaya (Naik) - Muncul saat surat
+        if(Math.random() < sparkRate) sparks.push({x: Math.random()*canvas.width, y: canvas.height+10, s: Math.random()*1.5+0.5, o: 1});
+        ctx.fillStyle = 'white';
+        sparks.forEach((s, i) => {
+            s.y -= s.s; s.o -= 0.005; ctx.globalAlpha = s.o;
+            ctx.beginPath(); ctx.arc(s.x, s.y, 1, 0, 7); ctx.fill();
+            if(s.o <= 0) sparks.splice(i, 1);
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(loop);
+    }
+    loop();
+</script>
+</body>
+</html>
